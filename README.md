@@ -53,6 +53,136 @@ e-commerce-module/
 │   ├── ProductService.php    # Product business rules & validation
 │   └── CartService.php       # Cart logic & calculations
 └── views/                    # Presentation templates
+    ├── product/              # Product-related views
+    └── cart/                 # Shopping cart views
+```
+
+### Design Patterns & Implementation
+
+#### **MVC Pattern Implementation**
+```php
+// Controller (HTTP Layer)
+class ProductController {
+    public function index() {
+        $products = $this->productService->getProducts();
+        include 'views/product/list.php'; // View
+    }
+}
+
+// Service (Business Logic Layer)
+class ProductService {
+    public function getProducts() {
+        return $this->productRepository->findAll(); // Model access
+    }
+}
+```
+
+#### **Repository Pattern**
+```php
+interface ProductRepositoryInterface {
+    public function findAll(): array;
+    public function findById(int $id): ?array;
+}
+
+class ProductRepository implements ProductRepositoryInterface {
+    public function findAll(): array {
+        $stmt = $this->pdo->prepare("SELECT * FROM products");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+}
+```
+
+#### **Dependency Injection Container**
+```php
+// bootstrap/app.php
+$container->set(PDO::class, function() {
+    return new PDO('mysql:host=localhost;dbname=ecommerce_db');
+});
+
+$container->set(ProductRepositoryInterface::class, function($c) {
+    return new ProductRepository($c->get(PDO::class));
+});
+
+$container->set(ProductService::class, function($c) {
+    return new ProductService($c->get(ProductRepositoryInterface::class));
+});
+```
+
+### Data Flow Architecture
+
+```
+HTTP Request → Controller → Service → Repository → Database
+                      ↓
+Response ← View ← Controller ← Service ← Repository ← Database
+```
+
+### Security Implementation
+
+#### **CSRF Protection Flow**
+1. **Token Generation**: Created per session in `CSRF::generateToken()`
+2. **Form Injection**: Automatically added to all POST forms
+3. **Validation**: Checked on every POST request in `index.php`
+4. **Regeneration**: Token invalidated after successful use
+
+#### **Session Security**
+- HTTPOnly cookies prevent JavaScript access
+- Secure flag for HTTPS enforcement
+- Automatic regeneration every 30 minutes
+- Session fixation protection
+
+### Business Logic Implementation
+
+#### **Product Management**
+- **Validation**: Price > 0, name length, URL format checking
+- **Caching**: Service-layer caching for performance
+- **Error Handling**: Custom exceptions with meaningful messages
+
+#### **Shopping Cart Logic**
+- **Session-Based**: Cart persists across browser sessions
+- **Quantity Management**: Add, update, remove with validation
+- **Price Calculations**: Real-time total computation
+- **Stock Checking**: Product availability verification
+
+### Database Design
+
+#### **Schema Overview**
+```sql
+-- Products table: Core product information
+CREATE TABLE products (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    image_path VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Cart items: Session-based shopping cart
+CREATE TABLE cart_items (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    session_id VARCHAR(255) NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_session_product (session_id, product_id)
+);
+```
+
+#### **Indexing Strategy**
+- **Primary Keys**: Auto-incrementing IDs
+- **Foreign Keys**: Referential integrity
+- **Unique Constraints**: Prevent duplicate cart items
+- **Performance Indexes**: Created on frequently queried columns
+
+## 📋 Requirements
+
+- **PHP**: 8.0 or higher
+- **Database**: MySQL 5.7+ or MariaDB 10.0+
+- **Web Server**: Apache/Nginx with mod_rewrite (optional)
+- **Extensions**: PDO, PDO_MySQL
 
 ## 🚀 Installation
 
