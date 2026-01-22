@@ -188,7 +188,7 @@ CREATE TABLE cart_items (
 
 ### 1. Clone or Download
 ```bash
-git clone https://github.com/your-username/e-commerce-module.git
+git clone https://github.com/sayaakash/e-commerce-module.git
 cd e-commerce-module
 ```
 
